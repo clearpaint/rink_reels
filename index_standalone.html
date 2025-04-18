@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>SAM2 Segmentation Client</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #status { margin: 10px 0; padding: 10px; background-color: #eee; }
+    #preview { border: 1px solid #ccc; display: block; margin-bottom: 10px; }
+    #annotationCanvas { border: 1px solid #ccc; cursor: crosshair; }
+    label { display: block; margin-top: 5px; }
+    button { margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>SAM2 Segmentation Client</h1>
+  <div id="status">Status: Not connected</div>
+
+  <!-- Parameters Form -->
+  <form id="startForm">
+    <label>
+      Video File:
+      <input type="file" id="videoPath">
+    </label>
+    <label>
+      Output Path:
+      <input type="text" id="outputPath" value="output_segmented.mp4">
+    </label>
+    <label>
+      Checkpoint:
+      <input type="text" id="checkpoint" value="/home/dc/PycharmProjects/SegmentationRaw/sam2/checkpoints/sam2.1_hiera_tiny.pt">
+    </label>
+    <label>
+      Config:
+      <input type="text" id="config" value="configs/sam2.1/sam2.1_hiera_t.yaml">
+    </label>
+    <label>
+      FPS:
+      <input type="number" id="fps" value="30">
+    </label>
+    <button type="button" id="startButton">Start Segmentation</button>
+  </form>
+
+  <h2>Preview Frame with Mask Overlay</h2>
+  <img id="preview" src="" alt="Preview Frame" width="640">
+
+  <h2>Annotate Object</h2>
+  <canvas id="annotationCanvas" width="640" height="360"></canvas>
+  <br>
+  <button type="button" id="confirmButton">Confirm Annotations</button>
+
+  <h2>Segmented Video</h2>
+  <video id="video-output" controls width="640" height="360"></video>
+
+  <script>
+    let ws;
+    const statusDiv = document.getElementById("status");
+    const previewImg = document.getElementById("preview");
+    const annotationCanvas = document.getElementById("annotationCanvas");
+    const confirmButton = document.getElementById("confirmButton");
+    const videoOutput = document.getElementById("video-output");
+    const ctx = annotationCanvas.getContext("2d");
+
+    function addStatus(message) {
+      statusDiv.innerText = "Status: " + message;
+    }
+
+    function connectWebSocket() {
+      ws = new WebSocket("ws://localhost:8765");
+      ws.onopen = function() {
+        addStatus("Connected to segmentation server.");
+      };
+      ws.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        if (data.type === "status" || data.type === "progress") {
+          addStatus(data.message);
+        } else if (data.type === "frame") {
+          previewImg.src = "data:image/jpeg;base64," + data.frame;
+          const img = new Image();
+          img.onload = function() {
+            ctx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+            ctx.drawImage(img, 0, 0, annotationCanvas.width, annotationCanvas.height);
+          }
+          img.src = previewImg.src;
+        } else if (data.type === "complete") {
+          addStatus(data.message);
+          videoOutput.src = data.output;
+        } else if (data.type === "error") {
+          addStatus("Error: " + data.message);
+        }
+      };
+      ws.onerror = function(error) {
+        console.error("WebSocket error:", error);
+      }
+      ws.onclose = function() {
+        addStatus("Disconnected from server.");
+      };
+    }
+
+    document.addEventListener("DOMContentLoaded", connectWebSocket);
+
+    document.getElementById("startButton").addEventListener("click", function() {
+      const videoInput = document.getElementById("videoPath");
+      if (!videoInput.files || videoInput.files.length === 0) {
+        addStatus("Please select a video file.");
+        return;
+      }
+      // In Electron, file inputs can expose the native file path.
+      const videoFilePath = videoInput.files[0].path || videoInput.files[0].name;
+      const outputPath = document.getElementById("outputPath").value;
+      const checkpoint = document.getElementById("checkpoint").value;
+      const config = document.getElementById("config").value;
+      const fps = parseInt(document.getElementById("fps").value);
+      const startMessage = {
+        type: "start",
+        video: videoFilePath,
+        output: outputPath,
+        checkpoint: checkpoint,
+        config: config,
+        fps: fps
+      };
+      ws.send(JSON.stringify(startMessage));
+      addStatus("Sent start message. Waiting for server response...");
+    });
+
+    // Handle canvas clicks for annotations
+    annotationCanvas.addEventListener("click", function(event) {
+      const rect = annotationCanvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      ctx.fillStyle = "green";
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, 2 * Math.PI);
+      ctx.fill();
+      const annotationMessage = {
+        type: "annotation",
+        ann_type: "click",
+        x: x,
+        y: y,
+        label: 1
+      };
+      ws.send(JSON.stringify(annotationMessage));
+    });
+
+    confirmButton.addEventListener("click", function() {
+      const confirmMessage = { type: "confirm" };
+      ws.send(JSON.stringify(confirmMessage));
+      addStatus("Annotations confirmed. Processing segmentation...");
+    });
+  </script>
+</body>
+</html>

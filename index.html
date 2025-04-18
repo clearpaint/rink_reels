@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rink Reels</title>
+
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+  <!-- Local Font Awesome CSS -->
+  <link rel="stylesheet" href="./node_modules/@fortawesome/fontawesome-free/css/all.min.css" />
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="@sweetalert2/themes/dark/dark.css" />
+
+  <!-- Optional OpenCV -->
+  <script src="https://docs.opencv.org/4.8.0/opencv.js" type="text/javascript"></script>
+</head>
+<body>
+  <!-- TOP NAVBAR -->
+  <nav class="navbar navbar-dark bg-dark navbar-expand-md fixed-top">
+    <div class="container-fluid p-0">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNavbar" aria-controls="topNavbar" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="topNavbar">
+        <ul class="navbar-nav">
+          <!-- Existing buttons -->
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="video-panel" onclick="toggleSidebar('videoPanel')">
+              <i class="fas fa-folder-closed"></i>
+            </button>
+          </li>
+          <li class="nav-item"><hr class="dropdown-divider bg-secondary" /></li>
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="mag-minus">
+              <i class="fas fa-magnifying-glass-minus"></i>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="mag-plus">
+              <i class="fas fa-magnifying-glass-plus"></i>
+            </button>
+          </li>
+          <!-- Reset View Button -->
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="reset-view">
+              <i class="fas fa-home"></i>
+            </button>
+          </li>
+          <li class="nav-item"><hr class="dropdown-divider bg-secondary" /></li>
+          <!-- Other buttons -->
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="mouse-pointer">
+              <i class="fas fa-mouse-pointer"></i>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="pen">
+              <i class="fas fa-pen"></i>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="vector-square">
+              <i class="fas fa-vector-square"></i>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="project-diagram">
+              <i class="fas fa-project-diagram"></i>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="draw-polygon">
+              <i class="fas fa-draw-polygon"></i>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="comment">
+              <i class="fas fa-comment"></i>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="circle-notch">
+              <i class="fas fa-circle-notch"></i>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="set-homography">
+              <i class="fas fa-ring"></i>
+            </button>
+          </li>
+          <!-- Eraser now clears the canvas -->
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="eraser">
+              <i class="fa fa-eraser"></i>
+            </button>
+          </li>
+          <!-- Undo button -->
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="undo">
+              <i class="fas fa-undo"></i>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="camera">
+              <i class="fas fa-camera"></i>
+            </button>
+          </li>
+          <li class="nav-item"><hr class="dropdown-divider bg-secondary" /></li>
+          <!-- Homography Button (new tool mode) -->
+
+
+          <!-- End Homography Buttons -->
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="player-tracking" onclick="trackPlayers()">
+              <i class="fas fa-running"></i>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="audio-detect" onclick="detectAudioEvents()">
+              <i class="fas fa-ear-listen"></i>
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-btn-id="tag" onclick="toggleSidebar('tagPanel')">
+              <i class="fas fa-tags"></i>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Left Sidebar -->
+  <div id="videoPanel" class="sidebar collapsed">
+    <h5 class="text-center">Video Items</h5>
+    <button id="toggleVideoFormBtn" class="btn btn-outline-light w-100 mb-2" onclick="toggleVideoForm()">
+      <i class="fa-solid fa-plus"></i>
+    </button>
+    <div id="addVideoForm" style="display: none;">
+      <input type="file" id="videoInput" class="form-control" accept="video/*" />
+      <input type="text" id="videoName" class="form-control mt-2" placeholder="Enter video name" />
+      <button class="btn btn-primary w-100 mt-2" onclick="addVideo()">Add Video</button>
+    </div>
+    <div id="videoList" class="mt-3"></div>
+  </div>
+
+  <!-- Right Sidebar -->
+  <div id="tagPanel" class="sidebar collapsed" style="right: 0;">
+    <h5 class="text-center">Video Tags</h5>
+    <select id="presetTags" class="form-control mb-2">
+      <option value="">Select a preset tag</option>
+      <option value="Goal">Goal</option>
+      <option value="Shot">Shot</option>
+      <option value="Block">Block</option>
+      <option value="Face-Off">Face-Off</option>
+    </select>
+    <div class="input-group mb-2">
+      <input type="text" id="tagInput" class="form-control" placeholder="Enter tag" />
+      <button class="btn btn-primary" onclick="addTag()">Add Tag</button>
+    </div>
+    <button class="btn btn-outline-light w-100 mb-3" onclick="detectAudioEvents()">
+      <i class="fa-solid fa-waveform-lines"></i> Detect Audio
+    </button>
+    <div id="tagList" class="mt-3 flex-grow-1"></div>
+    <button class="btn btn-outline-light w-100 mt-3" onclick="exportTags()">
+      <i class="fa-solid fa-file-export"></i> Export
+    </button>
+  </div>
+
+  <!-- Main Content -->
+  <div id="mainContent">
+    <div id="videoWrapper">
+      <h5 id="videoTitle"></h5>
+      <!-- Responsive VIDEO CONTAINER -->
+      <div class="video-container">
+        <video id="videoPlayer" preload="auto"></video>
+        <!-- Canvas for drawings (freehand, shapes, homography overlays, etc.) -->
+        <canvas id="drawCanvas" willReadFrequently="true"></canvas>
+        <!-- Bottom controls: player bar & timeline -->
+        <div class="bottom-controls">
+          <div class="player-bar">
+            <div class="time" id="playerBarTime">00:00:00</div>
+            <div class="progress-container" id="playerBarProgressContainer">
+              <div class="progress" id="playerBarProgress">
+                <div class="progress-fill" id="playerBarProgressFill"></div>
+                <div class="progress-dot" id="playerBarProgressDot"></div>
+              </div>
+            </div>
+            <div class="controls" id="playerBarControls">
+              <i class="fas fa-play" id="playerPlayPause"></i>
+              <i class="fas fa-step-backward" id="playerStepBack"></i>
+              <i class="fas fa-backward" id="playerBackward"></i>
+              <i class="fas fa-volume-mute" id="playerMute"></i>
+              <span id="playerSpeed">x1</span>
+              <i class="fas fa-step-forward" id="playerStepForward"></i>
+            </div>
+            <div class="actions">
+              <div class="label" id="action-upload"></div>
+            </div>
+          </div>
+          <div class="timeline-container" id="timelineContainer">
+            <div class="selection" id="selection"></div>
+            <div class="handle" id="handleStart"></div>
+            <div class="handle" id="handleEnd"></div>
+            <div id="timelineTags"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden file input for upload -->
+  <input type="file" id="videoUploaderFirst" accept="video/*,image/*" style="display: none;" />
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+  <!-- Homography Context Menu (for editing halo overlay colors) -->
+  <div id="homographyContextMenu">
+    <div>
+      <label for="homographyDropdownRingColor">Ring Color:</label>
+      <input type="color" id="homographyDropdownRingColor" value="#ffffff">
+    </div>
+    <div>
+      <label for="homographyDropdownSpotlightColor">Spotlight Color:</label>
+      <input type="color" id="homographyDropdownSpotlightColor" value="#ffffff">
+    </div>
+    <button id="homographyDropdownSaveBtn">Save</button>
+  </div>
+  <!-- SAM2 Segmentation Settings -->
+  <div id="segmentationPanel" class="sidebar collapsed" style="right:0;">
+    <h5 class="text-center">Segmentation Settings</h5>
+    <div class="p-3">
+      <label>Checkpoint:<br>
+        <input id="seg_checkpoint" class="form-control" type="text" value="/path/to/sam2.pt" />
+      </label>
+      <label class="mt-2">Config:<br>
+        <input id="seg_config" class="form-control" type="text" value="configs/sam2.yaml" />
+      </label>
+      <label class="mt-2">FPS:<br>
+        <input id="seg_fps" class="form-control" type="number" value="30" />
+      </label>
+      <button class="btn btn-secondary w-100 mt-3" onclick="toggleSidebar('segmentationPanel')">Close</button>
+    </div>
+  </div>
+  <!-- Bootstrap Bundle (with Popper) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Custom JS -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="script.js"></script>
+</body>
+</html>
